@@ -33,20 +33,21 @@ async def add_expense(
 
         expense_id = None
 
-        u_email = token["sub"]
+        # u_email = token["sub"]
         # user-> u_email -> id
         try:
             result = await db.execute(query, {
-                "user_id": token["sub"],  
+                "user_id": token.get("user_id"),  
                 "amount": expense_data.amount,
                 "category": expense_data.category,
                 "description": expense_data.description,
                 "payment_method": expense_data.payment_method,
                 "date": expense_data.date
             })
+            expense_id = result.scalar()
             await db.commit()
-            import pdb
-            pdb.set_trace()
+            # import pdb
+            # pdb.set_trace()
             inserted_row = result.fetchone()
             expense_id = inserted_row[0] if inserted_row else None
 
@@ -60,14 +61,13 @@ async def add_expense(
             await db.rollback() 
             print(e)
             raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    print(expense_id)
 
     return {"message": "Expense added successfully.", "expense_id": expense_id}
     
     # return {"message": "Expense added successfully.", "expense_id": expense_id}
 
 
-@router.get("/expenses", response_model=List[ExpenseResponse])
+@router.get("/expenses", response_model=ExpenseResponse)
 async def get_expenses(
     token: dict = Depends(verify_token),
     start_date: Optional[date] = Query(None),
@@ -75,7 +75,12 @@ async def get_expenses(
     category: Optional[str] = Query(None),
     payment_method: Optional[str] = Query(None)
 ):
-    user_id = token["user_id"]
+    
+    user_id = token.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token: 'id' is missing")
+
+
     async with async_get_postgres() as db:
         query = text("""
             SELECT id, amount, category, description, payment_method, date
@@ -83,7 +88,7 @@ async def get_expenses(
             WHERE user_id = :user_id
         """)
 
-        params = {"user_id": token["sub"]}
+        params = {"user_id": user_id}
         
         if start_date:
             query = text(query.text + " AND date >= :start_date")
@@ -102,20 +107,29 @@ async def get_expenses(
         expenses = result.mappings().all()
 
     return expenses
+    
+@router.get("/expenses_by_id", response_model=List[ExpenseResponse])
+async def get_expense_by_id(
+    expense_id: int = Query(..., description="The ID of the expense to retrieve"), 
+    token: dict = Depends(verify_token)
+):
+    user_id = token.get("user_id")
+    print(f" Fetching expense {expense_id} for user {user_id}")
+    if expense_id is None:
+        raise HTTPException(status_code=400, detail="Missing 'expense_id' query parameter")
 
-
-@router.get("/expenses/{expense_id}", response_model=ExpenseResponse)
-async def get_expense_by_id(expense_id: int, token: dict = Depends(verify_token)):
     async with async_get_postgres() as db:
         query = text("""
             SELECT id, amount, category, description, payment_method, date
             FROM expenses
             WHERE id = :expense_id AND user_id = :user_id
         """)
-        result = await db.execute(query, {"expense_id": expense_id, "user_id": token["sub"]})
+        # result = await db.execute(query, {"expense_id": expense_id, "user_id": token.get("user_id")})
+        result = await db.execute(query, {"expense_id": expense_id, "user_id": user_id})
+
         expense = result.mappings().first()
 
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
 
-    return expense
+    return [expense]

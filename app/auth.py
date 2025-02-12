@@ -32,12 +32,26 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 #     except JWTError:
 #         return None
 
+# def verify_access_token(token: str):
+    # try:
+    #     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    #     return payload  
+    # except JWTError:
+    #     raise HTTPException(status_code=401, detail="Invalid or expired token")
 def verify_access_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload  
+        user_id = payload.get("id")  
+        email = payload.get("email")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token: user ID missing")
+        
+        return {"user_id": user_id, "email": email}  
+
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)):
     token = credentials.credentials

@@ -16,7 +16,7 @@
 #     return {"message": "Expense Tracker API is running!"}
 
 from fastapi import FastAPI
-from app.routes import users, expenses
+from app.routes import users, expenses, summary
 
 app = FastAPI()
 DB_CONFIG = {
@@ -31,6 +31,7 @@ DB_CONFIG = {
 
 app.include_router(users.router, prefix="/api")
 app.include_router(expenses.router, prefix="/api")
+app.include_router(summary.router, prefix="/api")
 
 @app.get("/")
 def root():
