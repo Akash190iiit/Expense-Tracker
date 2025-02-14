@@ -33,8 +33,6 @@ async def add_expense(
 
         expense_id = None
 
-        # u_email = token["sub"]
-        # user-> u_email -> id
         try:
             result = await db.execute(query, {
                 "user_id": token.get("user_id"),  
