@@ -22,6 +22,7 @@ class ExpenseResponse(ExpenseCreate):
 @router.post("/expenses", status_code=201)
 async def add_expense(
     expense_data: ExpenseCreate,
+    # user_id: int
     token: dict = Depends(verify_token)
 ):
     async with async_get_postgres() as db:
@@ -36,6 +37,7 @@ async def add_expense(
         try:
             result = await db.execute(query, {
                 "user_id": token.get("user_id"),  
+                # "user_id": user_id,
                 "amount": expense_data.amount,
                 "category": expense_data.category,
                 "description": expense_data.description,
@@ -49,7 +51,6 @@ async def add_expense(
             inserted_row = result.fetchone()
             expense_id = inserted_row[0] if inserted_row else None
 
-
             if expense_id is None:
                 raise HTTPException(status_code=500, detail="Failed to add expense.")
 
@@ -62,8 +63,6 @@ async def add_expense(
 
     return {"message": "Expense added successfully.", "expense_id": expense_id}
     
-    # return {"message": "Expense added successfully.", "expense_id": expense_id}
-
 
 @router.get("/expenses", response_model=ExpenseResponse)
 async def get_expenses(
